@@ -46,5 +46,23 @@
 >>- Precedência e Segurança:
 >>>- É possível definir a prioridade e configurações de segurança;
 
+---
+
+### Funcionalidades providas pelo TCP
+>- **Conexão**:
+>>- Cliente antes de mandar informação deve estabelecer uma conexão;
+>>- São utilizados flags:
+>>>- *SYN*: flag que indica solicitação de estabelecimento de conexão com o outro host;
+>>>- *FIN*: flag que indica solicitação de finalização de conexão com outro host;
+>>>- *ACK*: flag de confirmação de solicitações;
+>- **Confiabilidade**:
+>>- Checa se as informações transmitidas estão corretas;
+>>- *Checksum*:
+>- **Entrega ordenada**:
+>>- Administra a ordem a qual os datagramas chegam no destino através do *Sequence Number*;
+>- **Controle de fluxo**:
+>>- Origem aguarda confirmação do recebimento do pacote, caso não receba envia novamente;
+
+
 [generic_diagram]: https://image.slidesharecdn.com/ethernetvietnguyen-150404074840-conversion-gate01/95/ethernet-networking-presentation-14-638.jpg?cb=1428151802 "Diagrama Genérico - Camada de Transporte é a camada representada pelo TCP/UDP"
 [introduction_tcp_udp]: http://1.bp.blogspot.com/-t30dpfdTKcw/T60838mE-zI/AAAAAAAAAAM/VZSxwm0F3gc/s1600/tcp-versus-udp.jpg "Ilustração do comportamento dos tipos de conexão"
