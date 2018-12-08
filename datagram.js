@@ -1,5 +1,4 @@
-var datagramLimitSize = 224
-var optionLength = 0;
+var maximumSegmentSize=536;
 
 var ConvertBase = function (num) {
     return {
@@ -38,6 +37,9 @@ function readStrFile(fileName) {
 
 function writeBinFile(fileName, string){
 	var fs = require('fs');
+	while (fs.existsSync(fileName)) {
+		
+	}
 	var buf = new Buffer(string, 'base64');
 	fs.writeFile(fileName, buf);
 	// var wstream = fs.createWriteStream(fileName, 'base64');
@@ -76,7 +78,7 @@ function concatDatagram(datagram){
 	allConcat+=sizeGarantee(dec2bin(datagram.microsoftWindow), 16);
 	allConcat+=sizeGarantee(dec2bin(datagram.checkSum), 16);
 	allConcat+=sizeGarantee(dec2bin(datagram.urgentPointer), 16);
-	allConcat+=sizeGarantee(dec2bin(datagram.badOptions), optionLength);
+	allConcat+=dec2bin(datagram.badOptions);
 	allConcat+=sizeGarantee(dec2bin(datagram.padding), paddingLenght);
 	allConcat+=datagram.dataDeAniversario;
 
@@ -91,14 +93,48 @@ function writeDatagramBin(fileName, datagram){
 	writeBinFile(fileName, concat);
 }
 
-function string2bin(string, size){
+function stringBin2dec(string){
 	var sum=0;
-	for(i=size-1; i>=0; i--){
+	for(i=string.length-1; i>=0; i--){
 		if(string.charAt(i)==1){
-			sum+=Math.pow(2, size-2-i);
+			sum+=Math.pow(2, string.length-1-i);
 		}
 	}
 	return sum;
+}
+
+function notOperator(string){
+	var not = "";
+	for(i=0; i<string.length; i++){
+		if(string.charAt(i)==1){
+			not=not+0;
+		} else {
+			not=not+1;
+		}
+	}
+	return not;
+
+}
+
+function objectPropInArray(list, prop, val, prop2, val2) {
+  if (list.length > 0 ) {
+    for (i in list) {
+      if (list[i][prop] === val && list[i][prop2] === val2) {
+        return list[i];
+      }
+    }
+  }
+  return undefined;
+}
+
+function setPropInArray(list, prop, val, prop2, val2, setProp, valSetProp) {
+  if (list.length > 0 ) {
+    for (i in list) {
+      if (list[i][prop] === val && list[i][prop2] === val2) {
+      	list[i][setProp] = valSetProp;
+      }
+    }
+  }
 }
 
 function generateCheksum(datagram){
@@ -116,28 +152,30 @@ function generateCheksum(datagram){
 	allConcat+=sizeGarantee(dec2bin(datagram.finFlag), 1);
 	allConcat+=sizeGarantee(dec2bin(datagram.microsoftWindow), 16);
 	allConcat+=sizeGarantee(dec2bin(datagram.urgentPointer), 16);
-	allConcat+=sizeGarantee(dec2bin(datagram.badOptions), optionLength);
+	allConcat+=dec2bin(datagram.badOptions);
 	allConcat+=sizeGarantee(dec2bin(datagram.padding), paddingLenght);
 	allConcat+=datagram.dataDeAniversario;
 
 	var value=0;
 
 	for(y=0; y<allConcat.length/16-1;y++){
-		var tmp = allConcat.substring(y*16, ((y+1)*16)-1);
-		value += string2bin(tmp, 16);
+		var tmp = allConcat.substring(y*16, ((y+1)*16));
+		value += stringBin2dec(tmp);
 	}
 
-	console.log(dec2bin(32));
-	console.log(dec2bin(Math.abs(~32)));
+	value = sizeGarantee(dec2bin(value%Math.pow(2, 16)), 16);
+	value = stringBin2dec(value.substring(4))+stringBin2dec(value.substring(0, 4));
+	value = sizeGarantee(dec2bin(value%Math.pow(2, 16)), 16)
+	return stringBin2dec(notOperator(value));
 
 }
 
 function paddingLenght(datagram){
-	return (datagramLimitSize-(160+optionLength)-dec2bin(datagram.dataDeAniversario).length)%32;
+	return (datagram.badOptions-(160+dec2bin(datagram.badOptions).length)-dec2bin(datagram.dataDeAniversario).length)%32;
 }
 
 function generateDataOffset(datagram){
-	return (192+optionLength+paddingLenght(datagram)+dec2bin(datagram.dataDeAniversario).length)/32;
+	return (192+dec2bin(datagram.badOptions).length+paddingLenght(datagram)+dec2bin(datagram.dataDeAniversario).length)/32;
 }
 
 var Datagram = class {
@@ -158,7 +196,7 @@ var Datagram = class {
 		this.finFlag = finFlag;																						//  1 bit
 		this.microsoftWindow = 0b100;																				// 16 bits tamnho da janela fixo 4
 		this.urgentPointer = urgentPointer;																			// 16 bits
-		this.badOptions = "";																						// variable bit
+		this.badOptions = maximumSegmentSize;																		// 10 bits maximum segment size (MSS) 
 		this.dataDeAniversario = dataDeAniversario;																	// 16 bits
 		this.padding = "";																							// variable bit
 		this.dataOffset = generateDataOffset(this);																	//  4 bits Número de 32 bits antes do conteúdo de data
@@ -168,7 +206,11 @@ var Datagram = class {
 
 };
 
-var arrayOfAlreadyStart3WayHandShake = []
+function getNextAck(){
+	
+}
+
+var arrayOfConections = [];
 
 function forward(){
 	var fs = require('fs');
@@ -185,7 +227,7 @@ function forward(){
 
 			var startConection = true;
 
-			if(arrayOfAlreadyStart3WayHandShake.length!=0 && lodash.filter(arrayOfAlreadyStart3WayHandShake, { 'source': sourcePort, 'destination': destinationPort } ) != undefined){
+			if(arrayOfConections.length!=0 && objectPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort)!=undefined){
 				startConection=false;
 			}
 
@@ -200,10 +242,72 @@ function forward(){
 					0, // não indica o final de uma segmentação da data
 					0, // não reseta conexão
 					1, // tenta sincronizar
-					0, // não indica que acabou data
+					0, // não indica que acabou a conexão
 					0, // urgent pointer não usado
 					"" // sem data
 				);
+				arrayOfConections.push({'source': sourcePort, 'destination': destinationPort, 'expectedAck': 0, 'windowAck': [1, 2, 3], 'handshakeSituation': "IN_PROGRESS", 'conectionMMS': 536, 'data':[dataDeAniversario]});
+
+			} else {
+
+				var buffer = objectPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort);
+
+				switch (buffer.handshakeSituation){
+					case "IN_PROGRESS":
+
+						setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));
+
+						break;
+					case "IN_PROGRESS_TO_FINISH":
+						
+						break;
+					case "DONE":
+
+						var sendData = dataDeAniversario;
+						
+						if(buffer.data.length>0){
+							sendData = buffer.data[0]
+							setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));							
+						}
+
+						if(buffer.windowAck[0] >= buffer.expectedAck+4){
+							console.log("Esperando confirmação ack: "+buffer.expectedAck);
+							if(sendData==dataDeAniversario){
+								setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));									
+							}
+						} else {
+
+							var sequenceNumber = buffer.windowAck[0];
+							setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'windowAck', buffer.windowAck.map((a, i) => a + [1,1,1][i]));	
+
+							for(i=0; i<sendData.length/maximumSegmentSize; i++){
+								if(i+1==sendData.length/maximumSegmentSize){
+									new Datagram(sourcePort, 
+										destinationPort, 
+										sequenceNumber, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
+										0, // ackNumber não será utilizado nesse caso
+										0, // reserved sempre nulo
+										0, // urgent pointer não usado
+										0, // não é um ACK
+										1, // não indica o final de uma segmentação da data
+										0, // não reseta conexão
+										0, // tenta sincronizar
+										0, // não indica que acabou conexão
+										0, // urgent pointer não usado
+										sendData.substring(i*maximumSegmentSize)
+									);
+								}
+							}
+
+							
+
+						}
+
+						break;
+
+				}
+
+
 			}
 
 
@@ -212,24 +316,43 @@ function forward(){
 	}
 }
 
-new Datagram(30, 
-			40, 
-			0, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
-			0, // ackNumber não será utilizado nesse caso
-			0, // reserved sempre nulo
-			0, // urgent pointer não usado
-			0, // não é um ACK
-			0, // não indica o final de uma segmentação da data
-			0, // não reseta conexão
-			1, // tenta sincronizar
-			0, // não indica que acabou data
-			0, // urgent pointer não usado
-			"" // sem data
-		);
 
-console.log(readBinFile('datagram_out.pdu'))
+function receive(){
 
-writeBinFile("teste.bin", "Bernard");
+}
+
+// new Datagram(30, 
+// 			40, 
+// 			0, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
+// 			0, // ackNumber não será utilizado nesse caso
+// 			0, // reserved sempre nulo
+// 			0, // urgent pointer não usado
+// 			0, // não é um ACK
+// 			0, // não indica o final de uma segmentação da data
+// 			0, // não reseta conexão
+// 			1, // tenta sincronizar
+// 			0, // não indica que acabou data
+// 			0, // urgent pointer não usado
+// 			"" // sem data
+// 		);
+
+
+console.log(dec2bin(536));
+
+// arrayOfConections.push({'source': 30, 'destination': 40, 'expectedAck': 1, 'receivedAck': []});
+
+// setPropInArray(arrayOfConections,'source', 30, 'destination', 40, 'receivedAck', ['bernard'])
+
+// console.log(arrayOfConections[0].receivedAck);
+
+
+
+// console.log(arrayOfConections[0].receivedAck.push(2));
+// console.log(objectPropInArray(arrayOfConections,'source', 30, 'destination', 40).receivedAck);
+
+// console.log(readBinFile('datagram_out.pdu'))
+
+// writeBinFile("teste.bin", "Bernard");
 
 
 // var test = "ip1:porta1-ip2:porta2" 192.888.132.5:30-192.888.132.6:40
