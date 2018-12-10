@@ -38,7 +38,7 @@ function readStrFile(fileName) {
 function writeBinFile(fileName, string){
 	var fs = require('fs');
 	while (fs.existsSync(fileName)) {
-		
+
 	}
 	var buf = new Buffer(string, 'base64');
 	fs.writeFile(fileName, buf);
@@ -207,7 +207,7 @@ var Datagram = class {
 };
 
 function getNextAck(){
-	
+
 }
 
 var arrayOfConections = [];
@@ -232,8 +232,8 @@ function forward(){
 			}
 
 			if(startConection){
-				new Datagram(sourcePort, 
-					destinationPort, 
+				new Datagram(sourcePort,
+					destinationPort,
 					0, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
 					0, // ackNumber não será utilizado nesse caso
 					0, // reserved sempre nulo
@@ -258,16 +258,13 @@ function forward(){
 						setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));
 
 						break;
-					case "IN_PROGRESS_TO_FINISH":
-						
-						break;
 					case "DONE":
 
 						var sendData = dataDeAniversario;
 						
 						if(buffer.data.length>0){
 							sendData = buffer.data[0]
-							setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));							
+							setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'data', buffer.data.push(dataDeAniversario));
 						}
 
 						if(buffer.windowAck[0] >= buffer.expectedAck+4){
@@ -280,26 +277,43 @@ function forward(){
 							var sequenceNumber = buffer.windowAck[0];
 							setPropInArray(arrayOfConections,'source', sourcePort, 'destination', destinationPort, 'windowAck', buffer.windowAck.map((a, i) => a + [1,1,1][i]));	
 
-							for(i=0; i<sendData.length/maximumSegmentSize; i++){
-								if(i+1==sendData.length/maximumSegmentSize){
-									new Datagram(sourcePort, 
-										destinationPort, 
-										sequenceNumber, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
-										0, // ackNumber não será utilizado nesse caso
-										0, // reserved sempre nulo
-										0, // urgent pointer não usado
-										0, // não é um ACK
-										1, // não indica o final de uma segmentação da data
-										0, // não reseta conexão
-										0, // tenta sincronizar
-										0, // não indica que acabou conexão
-										0, // urgent pointer não usado
-										sendData.substring(i*maximumSegmentSize)
-									);
+							if(sendData.length<=smaximumSegmentSize){
+
+							} else {
+								for(i=0; i<sendData.length/maximumSegmentSize; i++){
+									if(i+1==sendData.length/maximumSegmentSize){
+										new Datagram(sourcePort, 
+											destinationPort, 
+											sequenceNumber, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
+											0, // ackNumber não será utilizado nesse caso
+											0, // reserved sempre nulo
+											0, // urgent pointer não usado
+											0, // não é um ACK
+											1, // indica o final de uma segmentação da data
+											0, // não reseta conexão
+											0, // tenta sincronizar
+											0, // não indica que acabou conexão
+											0, // urgent pointer não usado
+											sendData.substring(i*maximumSegmentSize)
+										);
+									} else {
+										new Datagram(sourcePort, 
+											destinationPort, 
+											sequenceNumber, // primeiro sequence number. Geralmente é randômico, para facilitar será 0
+											0, // ackNumber não será utilizado nesse caso
+											0, // reserved sempre nulo
+											0, // urgent pointer não usado
+											0, // não é um ACK
+											0, // indica o final de uma segmentação da data
+											0, // não reseta conexão
+											0, // tenta sincronizar
+											0, // não indica que acabou conexão
+											0, // urgent pointer não usado
+											sendData.substring(i*maximumSegmentSize, (i+1)*maximumSegmentSize)
+										);
+									}
 								}
 							}
-
-							
 
 						}
 
